@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "nft": {
+      "title": "NFT",
+      "description": "A cross-chain non-fungible token record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "tokenId": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "image": { "type": "string", "maxLength": 2048 },
+        "chainId": { "type": "string", "maxLength": 32 },
+        "standard": { "type": "string", "maxLength": 32 },
+        "collectionId": { "type": "string", "maxLength": 128 },
+        "collectionName": { "type": "string", "maxLength": 100 },
+        "creatorAddress": { "type": "string", "maxLength": 128 },
+        "ownerAddress": { "type": "string", "maxLength": 128 },
+        "royaltyPercentage": { "type": "number" },
+        "royaltyPayoutAddress": { "type": "string", "maxLength": 128 },
+        "price": { "type": "number" },
+        "isListed": { "type": "boolean" },
+        "listedAt": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "ipfsMetadataUri": { "type": "string", "maxLength": 2048 },
+        "ipfsImageUri": { "type": "string", "maxLength": 2048 },
+        "contractAddress": { "type": "string", "maxLength": 128 },
+        "txHash": { "type": "string", "maxLength": 128 },
+        "likesCount": { "type": "number" },
+        "viewsCount": { "type": "number" }
+      },
+      "required": ["id", "tokenId", "name", "image", "chainId", "standard", "creatorAddress", "ownerAddress", "royaltyPercentage", "isListed", "createdAt"]
+    },
+    "collection": {
+      "title": "Collection",
+      "description": "An NFT collection entity deployed on-chain",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "contractAddress": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "symbol": { "type": "string", "maxLength": 32 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "bannerImage": { "type": "string", "maxLength": 2048 },
+        "avatarImage": { "type": "string", "maxLength": 2048 },
+        "chainId": { "type": "string", "maxLength": 32 },
+        "standard": { "type": "string", "maxLength": 32 },
+        "creatorAddress": { "type": "string", "maxLength": 128 },
+        "royaltyPercentage": { "type": "number" },
+        "royaltyPayoutAddress": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "maxSupply": { "type": "number" },
+        "currentSupply": { "type": "number" },
+        "floorPrice": { "type": "number" },
+        "totalVolume": { "type": "number" },
+        "ownersCount": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["id", "contractAddress", "name", "symbol", "chainId", "standard", "creatorAddress", "royaltyPercentage", "createdAt"]
+    },
+    "transaction": {
+      "title": "TransactionRecord",
+      "description": "A ledger record of an NFT on-chain transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 64 },
+        "txHash": { "type": "string", "maxLength": 128 },
+        "chainId": { "type": "string", "maxLength": 32 },
+        "fromAddress": { "type": "string", "maxLength": 128 },
+        "toAddress": { "type": "string", "maxLength": 128 },
+        "amountCrypto": { "type": "number" },
+        "amountUsd": { "type": "number" },
+        "gasUsedCrypto": { "type": "number" },
+        "gasUsedUsd": { "type": "number" },
+        "gasPriceGwei": { "type": "number" },
+        "nftId": { "type": "string", "maxLength": 128 },
+        "nftName": { "type": "string", "maxLength": 100 },
+        "nftImage": { "type": "string", "maxLength": 2048 },
+        "collectionId": { "type": "string", "maxLength": 128 },
+        "collectionName": { "type": "string", "maxLength": 100 },
+        "timestamp": { "type": "number" },
+        "status": { "type": "string", "maxLength": 32 },
+        "blockNumber": { "type": "number" }
+      },
+      "required": ["id", "type", "txHash", "chainId", "fromAddress", "toAddress", "timestamp", "status"]
+    },
+    "royalty": {
+      "title": "RoyaltyRecord",
+      "description": "Secondary marketplace creator royalty payout record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "txHash": { "type": "string", "maxLength": 128 },
+        "nftId": { "type": "string", "maxLength": 128 },
+        "nftName": { "type": "string", "maxLength": 100 },
+        "nftImage": { "type": "string", "maxLength": 2048 },
+        "collectionName": { "type": "string", "maxLength": 100 },
+        "chainId": { "type": "string", "maxLength": 32 },
+        "sellerAddress": { "type": "string", "maxLength": 128 },
+        "buyerAddress": { "type": "string", "maxLength": 128 },
+        "salePriceCrypto": { "type": "number" },
+        "royaltyPercent": { "type": "number" },
+        "royaltyAmountCrypto": { "type": "number" },
+        "royaltyAmountUsd": { "type": "number" },
+        "marketplaceFeeCrypto": { "type": "number" },
+        "sellerReceivedCrypto": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "txHash", "nftId", "nftName", "chainId", "sellerAddress", "buyerAddress", "salePriceCrypto", "royaltyPercent", "royaltyAmountCrypto", "timestamp"]
+    },
+    "bridgeTransaction": {
+      "title": "BridgeTransaction",
+      "description": "Omnichain cross-chain bridge transfer record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nftId": { "type": "string", "maxLength": 128 },
+        "nftName": { "type": "string", "maxLength": 100 },
+        "nftImage": { "type": "string", "maxLength": 2048 },
+        "sourceChain": { "type": "string", "maxLength": 32 },
+        "destinationChain": { "type": "string", "maxLength": 32 },
+        "sourceContract": { "type": "string", "maxLength": 128 },
+        "destinationContract": { "type": "string", "maxLength": 128 },
+        "sourceTokenId": { "type": "string", "maxLength": 64 },
+        "destinationTokenId": { "type": "string", "maxLength": 64 },
+        "senderAddress": { "type": "string", "maxLength": 128 },
+        "recipientAddress": { "type": "string", "maxLength": 128 },
+        "protocol": { "type": "string", "maxLength": 64 },
+        "bridgeStandard": { "type": "string", "maxLength": 64 },
+        "sourceTxHash": { "type": "string", "maxLength": 128 },
+        "destinationTxHash": { "type": "string", "maxLength": 128 },
+        "messageId": { "type": "string", "maxLength": 128 },
+        "timestamp": { "type": "number" },
+        "completedAt": { "type": "number" },
+        "status": { "type": "string", "maxLength": 32 },
+        "step": { "type": "number" },
+        "protocolFeeCrypto": { "type": "number" },
+        "protocolFeeUsd": { "type": "number" }
+      },
+      "required": ["id", "nftId", "nftName", "sourceChain", "destinationChain", "senderAddress", "recipientAddress", "protocol", "bridgeStandard", "sourceTxHash", "messageId", "timestamp", "status", "step"]
+    }
+  },
+  "firestore": {
+    "/nfts/{nftId}": {
+      "schema": "nft",
+      "description": "Public multi-chain NFTs available for browsing, trading, and minting"
+    },
+    "/collections/{collectionId}": {
+      "schema": "collection",
+      "description": "Verified and custom creator collections across all supported chains"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "transaction",
+      "description": "Public on-chain transaction history for studio and portfolio ledger"
+    },
+    "/royalties/{royaltyId}": {
+      "schema": "royalty",
+      "description": "Audited creator royalty payout logs from marketplace settlements"
+    },
+    "/bridge_transactions/{bridgeTransactionId}": {
+      "schema": "bridgeTransaction",
+      "description": "Teleportation and cross-chain bridge transaction monitoring logs"
+    }
+  }
+}

@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all unknown collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidNft(data) {
+      return data.keys().hasAll(['id', 'tokenId', 'name', 'image', 'chainId', 'standard', 'creatorAddress', 'ownerAddress', 'royaltyPercentage', 'isListed', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.tokenId is string && data.tokenId.size() <= 64 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.image is string && data.image.size() <= 2048 &&
+        data.chainId is string && data.chainId.size() <= 32 &&
+        data.standard is string && data.standard.size() <= 32 &&
+        data.creatorAddress is string && data.creatorAddress.size() <= 128 &&
+        data.ownerAddress is string && data.ownerAddress.size() <= 128 &&
+        data.royaltyPercentage is number && data.royaltyPercentage >= 0 && data.royaltyPercentage <= 100 &&
+        data.isListed is bool &&
+        data.createdAt is number;
+    }
+
+    function isValidCollection(data) {
+      return data.keys().hasAll(['id', 'contractAddress', 'name', 'symbol', 'chainId', 'standard', 'creatorAddress', 'royaltyPercentage', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.contractAddress is string && data.contractAddress.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.symbol is string && data.symbol.size() > 0 && data.symbol.size() <= 32 &&
+        data.chainId is string && data.chainId.size() <= 32 &&
+        data.standard is string && data.standard.size() <= 32 &&
+        data.creatorAddress is string && data.creatorAddress.size() <= 128 &&
+        data.royaltyPercentage is number && data.royaltyPercentage >= 0 && data.royaltyPercentage <= 100 &&
+        data.createdAt is number;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['id', 'type', 'txHash', 'chainId', 'fromAddress', 'toAddress', 'timestamp', 'status']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.type is string && data.type.size() <= 64 &&
+        data.txHash is string && data.txHash.size() <= 128 &&
+        data.chainId is string && data.chainId.size() <= 32 &&
+        data.fromAddress is string && data.fromAddress.size() <= 128 &&
+        data.toAddress is string && data.toAddress.size() <= 128 &&
+        data.timestamp is number &&
+        data.status is string && data.status.size() <= 32;
+    }
+
+    function isValidRoyalty(data) {
+      return data.keys().hasAll(['id', 'txHash', 'nftId', 'nftName', 'chainId', 'sellerAddress', 'buyerAddress', 'salePriceCrypto', 'royaltyPercent', 'royaltyAmountCrypto', 'timestamp']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.txHash is string && data.txHash.size() <= 128 &&
+        data.nftId is string && data.nftId.size() <= 128 &&
+        data.nftName is string && data.nftName.size() <= 100 &&
+        data.chainId is string && data.chainId.size() <= 32 &&
+        data.sellerAddress is string && data.sellerAddress.size() <= 128 &&
+        data.buyerAddress is string && data.buyerAddress.size() <= 128 &&
+        data.salePriceCrypto is number &&
+        data.royaltyPercent is number && data.royaltyPercent >= 0 && data.royaltyPercent <= 100 &&
+        data.royaltyAmountCrypto is number &&
+        data.timestamp is number;
+    }
+
+    function isValidBridgeTx(data) {
+      return data.keys().hasAll(['id', 'nftId', 'nftName', 'sourceChain', 'destinationChain', 'senderAddress', 'recipientAddress', 'protocol', 'bridgeStandard', 'sourceTxHash', 'messageId', 'timestamp', 'status', 'step']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.nftId is string && data.nftId.size() <= 128 &&
+        data.nftName is string && data.nftName.size() <= 100 &&
+        data.sourceChain is string && data.sourceChain.size() <= 32 &&
+        data.destinationChain is string && data.destinationChain.size() <= 32 &&
+        data.senderAddress is string && data.senderAddress.size() <= 128 &&
+        data.recipientAddress is string && data.recipientAddress.size() <= 128 &&
+        data.protocol is string && data.protocol.size() <= 64 &&
+        data.bridgeStandard is string && data.bridgeStandard.size() <= 64 &&
+        data.sourceTxHash is string && data.sourceTxHash.size() <= 128 &&
+        data.messageId is string && data.messageId.size() <= 128 &&
+        data.timestamp is number &&
+        data.status is string && data.status.size() <= 32 &&
+        data.step is number;
+    }
+
+    // Collections rules
+    match /nfts/{nftId} {
+      allow read: if true;
+      allow create: if isValidId(nftId) && isValidNft(request.resource.data);
+      allow update: if isValidId(nftId) && isValidNft(request.resource.data) &&
+        request.resource.data.creatorAddress == resource.data.creatorAddress &&
+        request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow create: if isValidId(collectionId) && isValidCollection(request.resource.data);
+      allow update: if isValidId(collectionId) && isValidCollection(request.resource.data) &&
+        request.resource.data.creatorAddress == resource.data.creatorAddress;
+      allow delete: if false;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow create: if isValidId(transactionId) && isValidTransaction(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /royalties/{royaltyId} {
+      allow read: if true;
+      allow create: if isValidId(royaltyId) && isValidRoyalty(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /bridge_transactions/{bridgeTransactionId} {
+      allow read: if true;
+      allow create: if isValidId(bridgeTransactionId) && isValidBridgeTx(request.resource.data);
+      allow update: if isValidId(bridgeTransactionId) && isValidBridgeTx(request.resource.data) &&
+        request.resource.data.sourceTxHash == resource.data.sourceTxHash;
+      allow delete: if false;
+    }
+  }
+}

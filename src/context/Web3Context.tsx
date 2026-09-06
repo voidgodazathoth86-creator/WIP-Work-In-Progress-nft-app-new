@@ -29,6 +29,24 @@ import {
   getBridgedContractAddress, 
   getRequiredConfirmations 
 } from '../services/bridgeService';
+import {
+  saveNftToFirestore,
+  updateNftInFirestore,
+  saveCollectionToFirestore,
+  updateCollectionInFirestore,
+  saveTransactionToFirestore,
+  saveRoyaltyToFirestore,
+  saveBridgeTxToFirestore,
+  seedInitialFirestoreData,
+  subscribeNfts,
+  subscribeCollections,
+  subscribeTransactions,
+  subscribeRoyalties,
+  subscribeBridgeTransactions,
+  testConnection,
+  FIRESTORE_REGION,
+  FIRESTORE_DB_ID
+} from '../services/firebase';
 
 // Built-in Keyring accounts for immediate full-featured testing
 export const DEMO_ACCOUNTS: WalletAccount[] = [
@@ -138,6 +156,11 @@ interface Web3ContextType {
   // Stats
   totalPortfolioValueUsd: number;
   totalRoyaltyEarnedUsd: number;
+
+  // Cloud Database Persistence (Firestore in us-east1)
+  isCloudConnected: boolean;
+  cloudRegion: string;
+  cloudDatabaseId: string;
 }
 
 const Web3Context = createContext<Web3ContextType | undefined>(undefined);
@@ -275,6 +298,79 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     localStorage.setItem(STORAGE_KEYS.BALANCES, JSON.stringify(balanceMap));
   }, [accounts]);
+
+  // Cloud Database Persistence state (Firestore in us-east1)
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(true);
+  const cloudRegion = FIRESTORE_REGION; // 'us-east1'
+  const cloudDatabaseId = FIRESTORE_DB_ID;
+
+  // Firestore Realtime Synchronization & Initial Boot Seeding
+  useEffect(() => {
+    let unsubscribeNfts: (() => void) | undefined;
+    let unsubscribeCols: (() => void) | undefined;
+    let unsubscribeTxs: (() => void) | undefined;
+    let unsubscribeRoys: (() => void) | undefined;
+    let unsubscribeBridges: (() => void) | undefined;
+
+    const initCloudDb = async () => {
+      try {
+        const connected = await testConnection();
+        setIsCloudConnected(connected);
+
+        // Seed initial items to Firestore if cloud collections are newly provisioned
+        await seedInitialFirestoreData(
+          INITIAL_NFTS,
+          INITIAL_COLLECTIONS,
+          INITIAL_TRANSACTIONS,
+          INITIAL_ROYALTY_LOGS,
+          INITIAL_BRIDGE_TRANSACTIONS
+        );
+
+        // Subscribe to live cloud updates
+        unsubscribeNfts = subscribeNfts((remoteNfts) => {
+          if (remoteNfts && remoteNfts.length > 0) {
+            setNfts(remoteNfts);
+          }
+        });
+
+        unsubscribeCols = subscribeCollections((remoteCols) => {
+          if (remoteCols && remoteCols.length > 0) {
+            setCollections(remoteCols);
+          }
+        });
+
+        unsubscribeTxs = subscribeTransactions((remoteTxs) => {
+          if (remoteTxs && remoteTxs.length > 0) {
+            setTransactions(remoteTxs);
+          }
+        });
+
+        unsubscribeRoys = subscribeRoyalties((remoteRoys) => {
+          if (remoteRoys && remoteRoys.length > 0) {
+            setRoyaltyLogs(remoteRoys);
+          }
+        });
+
+        unsubscribeBridges = subscribeBridgeTransactions((remoteBridges) => {
+          if (remoteBridges && remoteBridges.length > 0) {
+            setBridgeTransactions(remoteBridges);
+          }
+        });
+      } catch (err) {
+        console.warn('Cloud DB connection / subscription active in offline-tolerant mode:', err);
+      }
+    };
+
+    initCloudDb();
+
+    return () => {
+      unsubscribeNfts?.();
+      unsubscribeCols?.();
+      unsubscribeTxs?.();
+      unsubscribeRoys?.();
+      unsubscribeBridges?.();
+    };
+  }, []);
 
   // Live fluctuating gas fee estimation
   useEffect(() => {
@@ -563,11 +659,17 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setTransactions(prev => [newTx, ...prev]);
 
+    // Persist to Cloud Database (Firestore in us-east1)
+    saveNftToFirestore(newNft).catch(err => console.warn('Firestore write NFT failed:', err));
+    saveTransactionToFirestore(newTx).catch(err => console.warn('Firestore write TX failed:', err));
+
     // Update collection currentSupply if associated
     if (nftData.collectionId) {
       setCollections(prev => prev.map(c => {
         if (c.id === nftData.collectionId) {
-          return { ...c, currentSupply: c.currentSupply + 1 };
+          const updatedCol = { ...c, currentSupply: c.currentSupply + 1 };
+          updateCollectionInFirestore(c.id, { currentSupply: updatedCol.currentSupply }).catch(() => {});
+          return updatedCol;
         }
         return c;
       }));
@@ -657,6 +759,11 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     setTransactions(prev => [newTx, ...prev]);
+
+    // Persist to Cloud Database (Firestore in us-east1)
+    saveCollectionToFirestore(newCollection).catch(err => console.warn('Firestore write collection failed:', err));
+    saveTransactionToFirestore(newTx).catch(err => console.warn('Firestore write TX failed:', err));
+
     return { success: true, collection: newCollection, txHash };
   };
 
@@ -873,6 +980,18 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     setTransactions(prev => [batchTx, ...prev]);
 
+    // Persist to Cloud Database (Firestore in us-east1)
+    createdNFTs.forEach(nft => saveNftToFirestore(nft).catch(() => {}));
+    if (newlyCreatedCollection) {
+      saveCollectionToFirestore(newlyCreatedCollection).catch(() => {});
+    } else if (config.existingCollectionId && targetCollectionId) {
+      const col = collections.find(c => c.id === targetCollectionId);
+      if (col) {
+        updateCollectionInFirestore(targetCollectionId, { currentSupply: col.currentSupply + items.length }).catch(() => {});
+      }
+    }
+    saveTransactionToFirestore(batchTx).catch(() => {});
+
     return {
       success: true,
       mintedNFTs: createdNFTs,
@@ -897,6 +1016,8 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return item;
     }));
 
+    updateNftInFirestore(nftId, { price, isListed: true, listedAt: Date.now() }).catch(() => {});
+
     const nft = nfts.find(n => n.id === nftId);
     if (nft) {
       const chainConfig = SUPPORTED_CHAINS[nft.chainId];
@@ -917,6 +1038,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
         blockNumber: Math.floor(18000000 + Math.random() * 500000),
       };
       setTransactions(prev => [newTx, ...prev]);
+      saveTransactionToFirestore(newTx).catch(() => {});
     }
     return true;
   };
@@ -933,6 +1055,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       return item;
     }));
+    updateNftInFirestore(nftId, { price: 0, isListed: false, listedAt: 0 }).catch(() => {});
     return true;
   };
 
@@ -1027,6 +1150,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
         timestamp: Date.now(),
       };
       setRoyaltyLogs(prev => [royaltyRecord, ...prev]);
+      saveRoyaltyToFirestore(royaltyRecord).catch(() => {});
     }
 
     // 4. Record Buy Transaction
@@ -1050,6 +1174,16 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       blockNumber: Math.floor(18000000 + Math.random() * 500000),
     };
     setTransactions(prev => [newTx, ...prev]);
+
+    // Persist to Cloud Database (Firestore in us-east1)
+    updateNftInFirestore(nftId, {
+      ownerAddress: activeAccount.address,
+      ownerName: activeAccount.name,
+      isListed: false,
+      price: 0,
+      listedAt: 0,
+    }).catch(() => {});
+    saveTransactionToFirestore(newTx).catch(() => {});
 
     return { success: true, royaltyPaid: royaltyAmount, txHash };
   };
@@ -1087,6 +1221,17 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       blockNumber: Math.floor(18000000 + Math.random() * 500000),
     };
     setTransactions(prev => [newTx, ...prev]);
+
+    // Persist to Cloud Database (Firestore in us-east1)
+    updateNftInFirestore(nftId, {
+      ownerAddress: recipientAddress,
+      ownerName: `Owner (${recipientAddress.slice(0, 6)}...${recipientAddress.slice(-4)})`,
+      isListed: false,
+      price: 0,
+      listedAt: 0,
+    }).catch(() => {});
+    saveTransactionToFirestore(newTx).catch(() => {});
+
     return true;
   };
 
@@ -1112,6 +1257,16 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
       blockNumber: Math.floor(18000000 + Math.random() * 500000),
     };
     setTransactions(prev => [newTx, ...prev]);
+
+    // Persist to Cloud Database (Firestore in us-east1)
+    updateNftInFirestore(nftId, {
+      ownerAddress: '0x000000000000000000000000000000000000dEaD',
+      isListed: false,
+      price: 0,
+      listedAt: 0,
+    }).catch(() => {});
+    saveTransactionToFirestore(newTx).catch(() => {});
+
     return true;
   };
 
@@ -1150,6 +1305,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setNfts(prev => prev.map(item => {
       if (item.id === nftId) {
         const count = (item.likesCount || 0) + 1;
+        updateNftInFirestore(nftId, { likesCount: count }).catch(() => {});
         return { ...item, likesCount: count };
       }
       return item;
@@ -1247,6 +1403,7 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Add initial pending bridge tx
     setBridgeTransactions(prev => [bridgeTxRecord, ...prev]);
+    saveBridgeTxToFirestore(bridgeTxRecord).catch(() => {});
 
     // 1. Deduct source balance
     setAccounts(prev => prev.map(acc => {
@@ -1376,6 +1533,20 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setBridgeTransactions(prev => prev.map(tx => tx.id === bridgeTxRecord.id ? finalBridgeTx : tx));
 
+    // Persist to Cloud Database (Firestore in us-east1)
+    updateNftInFirestore(nft.id, {
+      chainId: destinationChain,
+      contractAddress: destContract,
+      ownerAddress: recipientAddress || activeAccount.address,
+      txHash: destinationTxHash,
+      isListed: false,
+      price: 0,
+      listedAt: 0,
+    }).catch(() => {});
+    saveTransactionToFirestore(destTx).catch(() => {});
+    saveTransactionToFirestore(sourceTx).catch(() => {});
+    saveBridgeTxToFirestore(finalBridgeTx).catch(() => {});
+
     // Step 4 Callback
     onStepUpdate?.(4, `Teleport complete! NFT is now live on ${destConfig.name}.`);
 
@@ -1468,6 +1639,15 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     setTransactions(prev => [royaltyTx, ...prev]);
 
+    // Persist to Cloud Database (Firestore in us-east1)
+    updates.forEach(u => {
+      updateCollectionInFirestore(u.collectionId, {
+        royaltyPercentage: u.royaltyPercentage,
+        royaltyPayoutAddress: u.royaltyPayoutAddress || activeAccount.address,
+      }).catch(() => {});
+    });
+    saveTransactionToFirestore(royaltyTx).catch(() => {});
+
     return {
       success: true,
       updatedCount: updates.length,
@@ -1536,6 +1716,10 @@ export const Web3Provider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         totalPortfolioValueUsd,
         totalRoyaltyEarnedUsd,
+
+        isCloudConnected,
+        cloudRegion,
+        cloudDatabaseId,
       }}
     >
       {children}

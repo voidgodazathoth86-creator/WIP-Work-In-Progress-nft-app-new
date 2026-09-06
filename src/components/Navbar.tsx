@@ -15,7 +15,8 @@ import {
   Copy,
   PlusCircle,
   Network,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Database
 } from 'lucide-react';
 import { formatCrypto, formatUsd } from '../services/gasService';
 import { BlockchainNetwork } from '../types';
@@ -41,7 +42,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     gasData, 
     isConnected, 
     activeAccount, 
-    activeBalance 
+    activeBalance,
+    isCloudConnected,
+    cloudRegion
   } = useWeb3();
 
   const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
@@ -151,9 +154,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
           </div>
 
-          {/* Right Header: Gas Ticker + Network Switcher + Faucet + Wallet */}
+          {/* Right Header: Cloud DB + Gas Ticker + Network Switcher + Faucet + Wallet */}
           <div className="flex items-center gap-2 sm:gap-3">
             
+            {/* Cloud Database Status Pill */}
+            <div 
+              id="cloud-db-status-pill"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-medium"
+              title={`Cloud Database: Firestore (${cloudRegion}) - Online & synced`}
+            >
+              <Database className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px] font-mono text-zinc-300">
+                {cloudRegion}
+              </span>
+              <span 
+                className={`w-1.5 h-1.5 rounded-full ${isCloudConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} 
+                title={isCloudConnected ? "Cloud Sync Active" : "Connecting..."}
+              />
+            </div>
+
             {/* Live Gas Ticker Pill */}
             <div className="relative">
               <button
