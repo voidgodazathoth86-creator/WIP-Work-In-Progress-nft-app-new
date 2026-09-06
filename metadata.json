@@ -1,0 +1,8 @@
+{
+  "name": "Remix Cross-Chain NFT Minting \u0026 Marketplace Studio",
+  "description": "Multi-chain NFT minting studio with secure wallet integration, real-time gas fee estimation, collection creator, portfolio dashboard, and secondary marketplace with automated creator royalties.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
